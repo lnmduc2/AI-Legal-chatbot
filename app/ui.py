@@ -1,5 +1,7 @@
 import asyncio
 import uuid
+from typing import Any
+from pathlib import Path
 
 from nicegui import app, ui
 
@@ -17,6 +19,14 @@ ERROR_BG = "#FFF3F1"
 ERROR_BORDER = "#F3C8C1"
 ERROR_TEXT = "#9A2B1F"
 
+DOCS_DIR = Path(__file__).resolve().parent.parent / "docs"
+
+FOLDER_CONFIG = {
+    "faq": {"label": "FAQ", "hint": "Câu hỏi thường gặp"},
+    "policy": {"label": "Policy", "hint": "Chính sách nội bộ"},
+    "law": {"label": "Văn bản luật", "hint": "Quy định, nghị định pháp luật"},
+}
+
 
 def get_session_id() -> str:
     session_id = app.storage.client.get("session_id")
@@ -24,6 +34,26 @@ def get_session_id() -> str:
         session_id = str(uuid.uuid4())[:8]
         app.storage.client["session_id"] = session_id
     return session_id
+
+
+def list_docs_files() -> dict[str, list[str]]:
+    """Return {folder_key: [file_names]} from the docs directory."""
+    result: dict[str, list[str]] = {}
+    for key in FOLDER_CONFIG:
+        folder = DOCS_DIR / key
+        if folder.is_dir():
+            result[key] = sorted(
+                f.name for f in folder.iterdir() if f.is_file() and f.name != ".gitkeep"
+            )
+        else:
+            result[key] = []
+    return result
+
+
+def delete_doc_file(folder_key: str, filename: str) -> None:
+    filepath = DOCS_DIR / folder_key / filename
+    if filepath.exists():
+        filepath.unlink()
 
 
 @ui.page("/")
@@ -34,11 +64,13 @@ def chat_page() -> None:
         f"""
         <style>
             body {{
-                background: linear-gradient(180deg, #f4f8f5 0%, #edf4ef 100%);
+                background:
+                    radial-gradient(ellipse at top left, rgba(0,122,51,0.06) 0%, transparent 60%),
+                    linear-gradient(180deg, #eef7f1 0%, #e4efe8 100%);
                 color: {TEXT};
             }}
             .app-shell {{
-                width: min(980px, calc(100vw - 24px));
+                width: min(1480px, calc(100vw - 24px));
                 height: calc(100vh - 24px);
                 margin: 12px auto;
                 background: {SURFACE};
@@ -82,8 +114,151 @@ def chat_page() -> None:
                 font-weight: 700;
                 white-space: nowrap;
             }}
-            .messages-pane {{
+            .body-split {{
+                display: flex;
+                flex: 1;
+                overflow: hidden;
+                width: 100%;
+            }}
+            .sidebar {{
+                width: 360px;
+                min-width: 360px;
+                background: {PRIMARY_SOFT};
+                border-right: 1px solid {BORDER};
+                display: flex;
+                flex-direction: column;
+                overflow: hidden;
+            }}
+            .sidebar-header {{
+                padding: 16px 18px 12px;
+                border-bottom: 1px solid {BORDER};
+            }}
+            .sidebar-title {{
+                font-size: 1rem;
+                font-weight: 800;
+                color: {PRIMARY_DARK};
+            }}
+            .sidebar-subtitle {{
+                margin-top: 3px;
+                font-size: 0.82rem;
+                color: {TEXT_MUTED};
+                line-height: 1.45;
+            }}
+            .sidebar-scroll {{
+                flex: 1;
+                overflow-y: auto;
+                padding: 14px 16px 20px;
+            }}
+            .folder-card {{
+                background: {SURFACE};
+                border: 1px solid {BORDER};
+                border-radius: 14px;
+                padding: 14px 15px 14px;
+                margin-bottom: 12px;
+                box-shadow: 0 2px 8px rgba(10,74,36,0.04);
+            }}
+            .folder-header {{
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                width: 100%;
+            }}
+            .folder-name {{
+                font-size: 0.95rem;
+                font-weight: 700;
+                color: {TEXT};
+            }}
+            .folder-upload-btn {{
+                padding: 5px 12px;
+                border-radius: 8px;
+                border: 1px solid {BORDER};
+                background: {SURFACE};
+                color: {PRIMARY};
+                font-size: 0.8rem;
+                font-weight: 700;
+                cursor: pointer;
+                display: inline-flex;
+                align-items: center;
+                gap: 4px;
+            }}
+            .folder-upload-btn:hover {{
+                background: {PRIMARY_SOFT};
+            }}
+            .folder-meta {{
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                margin-top: 6px;
+            }}
+            .folder-hint {{
+                font-size: 0.78rem;
+                color: {TEXT_MUTED};
+            }}
+            .folder-badge {{
+                font-size: 0.72rem;
+                font-weight: 700;
+                padding: 2px 8px;
+                border-radius: 999px;
+                background: {PRIMARY_SOFT};
+                color: {PRIMARY};
+            }}
+            .file-list {{
+                margin-top: 10px;
+            }}
+            .file-row {{
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 6px 8px;
+                border-radius: 8px;
+                margin-top: 4px;
                 background: {SURFACE_MUTED};
+                font-size: 0.83rem;
+                color: {TEXT};
+            }}
+            .file-row:hover {{
+                background: {PRIMARY_SOFT};
+            }}
+            .file-name {{
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                flex: 1;
+                margin-right: 8px;
+            }}
+            .file-delete-btn {{
+                width: 22px;
+                height: 22px;
+                border-radius: 50%;
+                border: none;
+                background: {ERROR_BG};
+                color: {ERROR_TEXT};
+                font-size: 0.85rem;
+                font-weight: 700;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                flex-shrink: 0;
+            }}
+            .file-delete-btn:hover {{
+                background: {ERROR_BORDER};
+            }}
+            .empty-folder-msg {{
+                margin-top: 10px;
+                font-size: 0.8rem;
+                color: {TEXT_MUTED};
+                font-style: italic;
+            }}
+            .chat-area {{
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                overflow: hidden;
+                background: linear-gradient(180deg, #f7faf8 0%, #f2f5f3 100%);
+            }}
+            .messages-pane {{
+                background: transparent;
             }}
             .messages-column {{
                 width: 100%;
@@ -252,15 +427,25 @@ def chat_page() -> None:
                 .composer {{
                     padding: 12px;
                 }}
+                .sidebar {{
+                    width: 100%;
+                    min-width: unset;
+                    border-right: none;
+                    border-bottom: 1px solid {BORDER};
+                }}
+                .body-split {{
+                    flex-direction: column;
+                }}
             }}
         </style>
         """
     )
 
     with ui.column().classes("app-shell"):
+        # ===== TOPBAR =====
         with ui.row().classes("topbar w-full items-start no-wrap"):
             with ui.column().classes("gap-0"):
-                ui.label("AI Legal Demo").classes("topbar-kicker")
+                ui.label("AI LEGAL DEMO").classes("topbar-kicker")
                 ui.label("Tra cứu chính sách và văn bản pháp luật").classes("topbar-title")
                 ui.label(
                     "Trả lời dựa trên tài liệu đã nạp, có trích dẫn nguồn để kiểm chứng khi demo."
@@ -268,26 +453,126 @@ def chat_page() -> None:
             ui.space()
             ui.label(f"Session {session_id}").classes("session-chip")
 
-        chat_container = ui.scroll_area().classes("messages-pane").style(
-            "flex-grow: 1; width: 100%; padding: 0 14px;"
-        )
-        with chat_container:
-            messages_column = ui.column().classes("messages-column")
+        # ===== BODY: split sidebar + chat =====
+        with ui.element("div").classes("body-split"):
+            # --- SIDEBAR ---
+            with ui.element("div").classes("sidebar"):
+                with ui.element("div").classes("sidebar-header"):
+                    ui.label("Tài liệu").classes("sidebar-title")
+                    ui.label("Quản lý file tài liệu tham chiếu để tra cứu.").classes("sidebar-subtitle")
 
-        with ui.column().classes("composer w-full"):
-            with ui.row().classes("w-full no-wrap items-end gap-3"):
-                input_field = (
-                    ui.textarea(placeholder="Nhập câu hỏi để tra cứu từ tài liệu...")
-                    .props("outlined autogrow")
-                    .style("flex-grow: 1;")
+                sidebar_scroll = ui.element("div").classes("sidebar-scroll")
+
+                # We'll populate folders here
+                folder_containers: dict[str, Any] = {}
+
+                with sidebar_scroll:
+                    for key, cfg in FOLDER_CONFIG.items():
+                        with ui.element("div").classes("folder-card") as folder_card:
+                            with ui.row().classes("folder-header w-full no-wrap items-center"):
+                                ui.label(cfg["label"]).classes("folder-name")
+                                upload_btn = ui.button().props("flat dense")
+                                upload_btn.style(f"color: {PRIMARY};")
+                                with upload_btn:
+                                    with ui.row().classes("no-wrap items-center gap-1"):
+                                        ui.icon("upload", size="xs")
+                                        ui.label("Upload").style("font-size:0.8rem;")
+
+                            with ui.row().classes("folder-meta"):
+                                ui.label(cfg["hint"]).classes("folder-hint")
+                                badge = ui.label("").classes("folder-badge")
+
+                            empty_msg = ui.label("Chưa có file nào. Nhấn Upload để thêm.").classes("empty-folder-msg")
+
+                            file_list_el = ui.element("div").classes("file-list")
+
+                            folder_containers[key] = {
+                                "card": folder_card,
+                                "badge": badge,
+                                "empty_msg": empty_msg,
+                                "file_list": file_list_el,
+                                "upload_btn": upload_btn,
+                            }
+
+            # --- CHAT AREA ---
+            with ui.element("div").classes("chat-area"):
+                chat_container = ui.scroll_area().classes("messages-pane").style(
+                    "flex-grow: 1; width: 100%; padding: 0 14px;"
                 )
-                send_btn = ui.button("Gửi").props("unelevated size=lg")
-                send_btn.style(
-                    f"background: {PRIMARY}; color: white; border-radius: 14px; padding: 0 22px;"
-                )
-            ui.label(
-                "Mẹo: có thể hỏi về điều luật, mức phân loại bảo mật, trách nhiệm doanh nghiệp, hoặc xử lý sự cố an ninh thông tin."
-            ).classes("composer-note")
+                with chat_container:
+                    messages_column = ui.column().classes("messages-column")
+
+                with ui.column().classes("composer w-full"):
+                    with ui.row().classes("w-full no-wrap items-end gap-3"):
+                        input_field = (
+                            ui.textarea(placeholder="Nhập câu hỏi để tra cứu từ tài liệu...")
+                            .props("outlined autogrow")
+                            .style("flex-grow: 1;")
+                        )
+                        send_btn = ui.button("Gửi").props("unelevated size=lg")
+                        send_btn.style(
+                            f"background: {PRIMARY}; color: white; border-radius: 14px; padding: 0 22px;"
+                        )
+                    ui.label(
+                        "Mẹo: có thể hỏi về điều luật, mức phân loại bảo mật, trách nhiệm doanh nghiệp, hoặc xử lý sự cố an ninh thông tin."
+                    ).classes("composer-note")
+
+    # ===== HELPER FUNCTIONS =====
+
+    def refresh_folder_view() -> None:
+        """Re-render all folder cards from the current docs directory state."""
+        docs = list_docs_files()
+        for key, containers in folder_containers.items():
+            files = docs.get(key, [])
+            count = len(files)
+            containers["badge"].text = f"{count} file{'s' if count != 1 else ''}"
+            containers["empty_msg"].visible = count == 0
+
+            # Clear file list
+            containers["file_list"].clear()
+
+            for fname in files:
+                with containers["file_list"]:
+                    with ui.element("div").classes("file-row"):
+                        ui.label(fname).classes("file-name")
+
+                        def make_delete_handler(fk: str, fn: str):
+                            def handler():
+                                delete_doc_file(fk, fn)
+                                refresh_folder_view()
+                            return handler
+
+                        delete_btn = ui.element("button").props("flat dense").classes("file-delete-btn")
+                        with delete_btn:
+                            ui.icon("close", size="xs")
+                        delete_btn.on("click", make_delete_handler(key, fname))
+
+    def handle_upload(folder_key: str) -> None:
+        """Open a file dialog and upload files to the given folder."""
+        target_dir = DOCS_DIR / folder_key
+        target_dir.mkdir(parents=True, exist_ok=True)
+
+        def on_upload(e):
+            if e.content:
+                for item in e.content:
+                    dest = target_dir / item.name
+                    with open(dest, "wb") as f:
+                        for chunk in item.file.read_chunks():
+                            f.write(chunk)
+                refresh_folder_view()
+
+        ui.upload(
+            on_upload=on_upload,
+            auto_upload=True,
+            max_file_size=10_000_000,
+        ).props("flat dense").style("position:fixed;top:-9999px;opacity:0;").run_method("click")
+
+    # Bind upload buttons
+    for key, containers in folder_containers.items():
+        containers["upload_btn"].on("click", lambda e, k=key: handle_upload(k))
+
+    # Initial render
+    refresh_folder_view()
 
     def scroll_to_latest() -> None:
         ui.run_javascript(
