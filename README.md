@@ -51,3 +51,7 @@ demo_memory/        # Visible conversation memory
 - **Visible memory**: Session Q&A persisted to `demo_memory/` as JSON files
 - **NiceGUI chat UI**: Heineken-green theme with thinking indicator and 60s timeout
 - **Benchmark script**: 5 fixed questions (3 law + 2 policy) for validation
+
+
+## Demo
+uv run -m app.main
