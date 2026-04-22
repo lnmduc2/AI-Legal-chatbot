@@ -11,5 +11,4 @@ if __name__ in {"__main__", "__mp_main__"}:
     print(f"Model: {AI_LEGAL_MODEL}")
     print(f"Endpoint: {OPENAI_BASE_URL}")
     print(get_workspace_summary())
-    chat_page()
     ui.run(title="AI Legal Assistant", port=8080)

@@ -5,10 +5,17 @@ from nicegui import app, ui
 
 from app.agent import ask_question
 
-HEINEKEN_GREEN_PRIMARY = "#007A33"
-HEINEKEN_GREEN_LIGHT = "#0D9B4E"
-HEINEKEN_GREEN_BG = "#E8F5E9"
-HEINEKEN_GREEN_DARK = "#004D1F"
+PRIMARY = "#007A33"
+PRIMARY_DARK = "#0A4A24"
+PRIMARY_SOFT = "#EAF6EE"
+SURFACE = "#FFFFFF"
+SURFACE_MUTED = "#F6F8F7"
+TEXT = "#183022"
+TEXT_MUTED = "#66756B"
+BORDER = "#D9E6DD"
+ERROR_BG = "#FFF3F1"
+ERROR_BORDER = "#F3C8C1"
+ERROR_TEXT = "#9A2B1F"
 
 
 def get_session_id() -> str:
@@ -20,111 +27,316 @@ def get_session_id() -> str:
 
 
 @ui.page("/")
-def chat_page():
+def chat_page() -> None:
     session_id = get_session_id()
 
-    ui.add_head_html(f"""
+    ui.add_head_html(
+        f"""
         <style>
-            .msg-user {{
-                background: {HEINEKEN_GREEN_PRIMARY};
-                color: white;
-                padding: 10px 18px;
-                border-radius: 18px 18px 4px 18px;
-                margin: 6px 0;
-                max-width: 75%;
-                align-self: flex-end;
-                word-wrap: break-word;
-                line-height: 1.5;
+            body {{
+                background: linear-gradient(180deg, #f4f8f5 0%, #edf4ef 100%);
+                color: {TEXT};
             }}
-            .msg-assistant {{
-                background: {HEINEKEN_GREEN_BG};
-                color: #1B5E20;
-                padding: 10px 18px;
-                border-radius: 18px 18px 18px 4px;
-                margin: 6px 0;
-                max-width: 75%;
-                align-self: flex-start;
-                word-wrap: break-word;
-                border: 1px solid #C8E6C9;
+            .app-shell {{
+                width: min(980px, calc(100vw - 24px));
+                height: calc(100vh - 24px);
+                margin: 12px auto;
+                background: {SURFACE};
+                border: 1px solid {BORDER};
+                border-radius: 22px;
+                box-shadow: 0 12px 36px rgba(10, 74, 36, 0.08);
+                overflow: hidden;
+            }}
+            .topbar {{
+                padding: 18px 22px 16px;
+                background: linear-gradient(135deg, {PRIMARY_DARK}, {PRIMARY});
+                color: white;
+            }}
+            .topbar-kicker {{
+                font-size: 0.72rem;
+                font-weight: 700;
+                letter-spacing: 0.14em;
+                text-transform: uppercase;
+                opacity: 0.78;
+            }}
+            .topbar-title {{
+                margin-top: 4px;
+                font-size: 1.2rem;
+                font-weight: 800;
+                line-height: 1.2;
+            }}
+            .topbar-subtitle {{
+                margin-top: 6px;
+                max-width: 700px;
+                font-size: 0.9rem;
                 line-height: 1.5;
+                color: rgba(255, 255, 255, 0.86);
+            }}
+            .session-chip {{
+                padding: 7px 11px;
+                border-radius: 999px;
+                border: 1px solid rgba(255, 255, 255, 0.16);
+                background: rgba(255, 255, 255, 0.12);
+                color: white;
+                font-size: 0.78rem;
+                font-weight: 700;
+                white-space: nowrap;
+            }}
+            .messages-pane {{
+                background: {SURFACE_MUTED};
+            }}
+            .messages-column {{
+                width: 100%;
+                gap: 14px;
+                padding: 18px 4px 10px;
+            }}
+            .row-user,
+            .row-assistant,
+            .row-status,
+            .row-error {{
+                display: flex;
+                width: 100%;
+            }}
+            .row-user {{
+                justify-content: flex-end;
+            }}
+            .row-assistant,
+            .row-status,
+            .row-error {{
+                justify-content: flex-start;
+            }}
+            .bubble {{
+                max-width: min(760px, 86%);
+                padding: 14px 16px;
+                border-radius: 18px;
+                border: 1px solid {BORDER};
+                box-shadow: 0 4px 14px rgba(10, 74, 36, 0.04);
+            }}
+            .bubble-user {{
+                background: linear-gradient(135deg, {PRIMARY}, #138545);
+                color: white;
+                border-color: transparent;
+                border-bottom-right-radius: 6px;
+            }}
+            .bubble-assistant {{
+                background: {SURFACE};
+                color: {TEXT};
+                border-bottom-left-radius: 6px;
+            }}
+            .bubble-status {{
+                background: {PRIMARY_SOFT};
+                color: {TEXT_MUTED};
+                border-color: #d6eadc;
+                border-bottom-left-radius: 6px;
+            }}
+            .bubble-error {{
+                background: {ERROR_BG};
+                color: {ERROR_TEXT};
+                border-color: {ERROR_BORDER};
+                border-bottom-left-radius: 6px;
+            }}
+            .message-label {{
+                margin-bottom: 8px;
+                font-size: 0.72rem;
+                font-weight: 700;
+                letter-spacing: 0.12em;
+                text-transform: uppercase;
+                opacity: 0.72;
+            }}
+            .bubble-user .message-label {{
+                color: rgba(255, 255, 255, 0.8);
+            }}
+            .bubble-assistant .message-label,
+            .bubble-status .message-label {{
+                color: {PRIMARY};
+            }}
+            .bubble-error .message-label {{
+                color: {ERROR_TEXT};
+            }}
+            .message-text {{
+                white-space: pre-wrap;
+                line-height: 1.6;
+                font-size: 0.97rem;
+            }}
+            .message-markdown {{
+                font-size: 0.97rem;
+                line-height: 1.7;
+            }}
+            .message-markdown p:first-child {{
+                margin-top: 0;
+            }}
+            .message-markdown p:last-child {{
+                margin-bottom: 0;
+            }}
+            .message-markdown h1,
+            .message-markdown h2,
+            .message-markdown h3 {{
+                margin: 0.95rem 0 0.45rem;
+                color: {PRIMARY_DARK};
+                font-weight: 800;
+                line-height: 1.3;
+            }}
+            .message-markdown h1 {{ font-size: 1.16rem; }}
+            .message-markdown h2 {{ font-size: 1.05rem; }}
+            .message-markdown h3 {{ font-size: 0.98rem; }}
+            .message-markdown ul,
+            .message-markdown ol {{
+                margin: 0.4rem 0 0.8rem;
+                padding-left: 1.15rem;
+            }}
+            .message-markdown li {{
+                margin: 0.18rem 0;
+            }}
+            .message-markdown strong {{
+                color: {PRIMARY_DARK};
+            }}
+            .message-markdown code {{
+                padding: 0.1rem 0.32rem;
+                border-radius: 6px;
+                background: rgba(0, 122, 51, 0.08);
+                color: {PRIMARY_DARK};
+                font-size: 0.92em;
+            }}
+            .message-markdown hr {{
+                border: 0;
+                border-top: 1px solid {BORDER};
+                margin: 1rem 0;
+            }}
+            .composer {{
+                padding: 14px 16px 16px;
+                background: {SURFACE};
+                border-top: 1px solid {BORDER};
+            }}
+            .composer-note {{
+                margin-top: 8px;
+                color: {TEXT_MUTED};
+                font-size: 0.81rem;
             }}
             .thinking-dots {{
                 display: inline-flex;
-                align-items: center;
-                gap: 5px;
-                padding: 10px 18px;
+                gap: 6px;
+                margin-right: 10px;
             }}
             .dot {{
                 width: 8px;
                 height: 8px;
-                background: {HEINEKEN_GREEN_PRIMARY};
-                border-radius: 50%;
-                animation: pulse 1.4s infinite ease-in-out both;
+                border-radius: 999px;
+                background: {PRIMARY};
+                animation: pulse 1.25s infinite ease-in-out both;
             }}
-            .dot:nth-child(1) {{ animation-delay: -0.32s; }}
-            .dot:nth-child(2) {{ animation-delay: -0.16s; }}
+            .dot:nth-child(1) {{ animation-delay: -0.24s; }}
+            .dot:nth-child(2) {{ animation-delay: -0.12s; }}
             @keyframes pulse {{
-                0%, 80%, 100% {{ transform: scale(0.6); opacity: 0.4; }}
-                40% {{ transform: scale(1.0); opacity: 1; }}
+                0%, 80%, 100% {{ transform: scale(0.55); opacity: 0.35; }}
+                40% {{ transform: scale(1); opacity: 1; }}
             }}
-            .msg-timeout {{
-                color: #C62828;
-                font-style: italic;
-                padding: 10px 18px;
-                background: #FFEBEE;
-                border: 1px solid #FFCDD2;
-                border-radius: 18px 18px 18px 4px;
-                margin: 6px 0;
-                max-width: 75%;
-                align-self: flex-start;
-            }}
-            .msg-error {{
-                color: #C62828;
-                padding: 10px 18px;
-                background: #FFEBEE;
-                border: 1px solid #FFCDD2;
-                border-radius: 18px 18px 18px 4px;
-                margin: 6px 0;
-                max-width: 75%;
-                align-self: flex-start;
+            @media (max-width: 768px) {{
+                .app-shell {{
+                    width: calc(100vw - 10px);
+                    height: calc(100vh - 10px);
+                    margin: 5px auto;
+                    border-radius: 16px;
+                }}
+                .topbar {{
+                    padding: 16px 16px 14px;
+                }}
+                .topbar-title {{
+                    font-size: 1.08rem;
+                }}
+                .topbar-subtitle {{
+                    font-size: 0.84rem;
+                }}
+                .bubble {{
+                    max-width: 100%;
+                }}
+                .composer {{
+                    padding: 12px;
+                }}
             }}
         </style>
-    """)
+        """
+    )
 
-    with ui.column().style("width: 100%; height: calc(100vh - 80px);"):
-        # Header
-        with ui.row().classes("w-full no-wrap items-center").style("padding: 16px;"):
-            ui.label("AI Legal Assistant").style(
-                f"color: {HEINEKEN_GREEN_DARK}; font-weight: bold; font-size: 1.3rem;"
-            )
+    with ui.column().classes("app-shell"):
+        with ui.row().classes("topbar w-full items-start no-wrap"):
+            with ui.column().classes("gap-0"):
+                ui.label("AI Legal Demo").classes("topbar-kicker")
+                ui.label("Tra cứu chính sách và văn bản pháp luật").classes("topbar-title")
+                ui.label(
+                    "Trả lời dựa trên tài liệu đã nạp, có trích dẫn nguồn để kiểm chứng khi demo."
+                ).classes("topbar-subtitle")
             ui.space()
-            ui.label(f"Session: {session_id}").style(
-                f"color: {HEINEKEN_GREEN_PRIMARY}; font-size: 0.85rem;"
-            )
-        ui.separator()
+            ui.label(f"Session {session_id}").classes("session-chip")
 
-        # Chat messages area
-        chat_container = ui.scroll_area().style("flex-grow: 1; padding: 0 12px;")
+        chat_container = ui.scroll_area().classes("messages-pane").style(
+            "flex-grow: 1; width: 100%; padding: 0 14px;"
+        )
         with chat_container:
-            messages_column = ui.column().classes("w-full")
+            messages_column = ui.column().classes("messages-column")
 
-        # Input area
-        with ui.row().classes("w-full no-wrap items-center").style("padding: 12px;"):
-            input_field = ui.input(placeholder="Nhập câu hỏi của bạn...").props(
-                "outlined dense"
-            ).style("flex-grow: 1;")
-            send_btn = ui.button("Gửi").props("round color=green")
+        with ui.column().classes("composer w-full"):
+            with ui.row().classes("w-full no-wrap items-end gap-3"):
+                input_field = (
+                    ui.textarea(placeholder="Nhập câu hỏi để tra cứu từ tài liệu...")
+                    .props("outlined autogrow")
+                    .style("flex-grow: 1;")
+                )
+                send_btn = ui.button("Gửi").props("unelevated size=lg")
+                send_btn.style(
+                    f"background: {PRIMARY}; color: white; border-radius: 14px; padding: 0 22px;"
+                )
+            ui.label(
+                "Mẹo: có thể hỏi về điều luật, mức phân loại bảo mật, trách nhiệm doanh nghiệp, hoặc xử lý sự cố an ninh thông tin."
+            ).classes("composer-note")
 
-    def add_message(text: str, css_class: str):
-        with messages_column:
-            ui.html(text).classes(css_class)
+    def scroll_to_latest() -> None:
         ui.run_javascript(
             "setTimeout(() => { "
             "const el = document.querySelector('.nicegui-scroll-area__content'); "
-            "if (el) el.scrollTop = el.scrollHeight; }, 100);"
+            "if (el) el.scrollTop = el.scrollHeight; }, 80);"
         )
 
-    async def handle_send():
+    def add_user_message(text: str) -> None:
+        with messages_column:
+            with ui.element("div").classes("row-user"):
+                with ui.element("div").classes("bubble bubble-user"):
+                    ui.label("Người dùng").classes("message-label")
+                    ui.label(text).classes("message-text")
+        scroll_to_latest()
+
+    def add_assistant_message(text: str) -> None:
+        with messages_column:
+            with ui.element("div").classes("row-assistant"):
+                with ui.element("div").classes("bubble bubble-assistant"):
+                    ui.label("Trợ lý").classes("message-label")
+                    ui.markdown(text).classes("message-markdown")
+        scroll_to_latest()
+
+    def add_status_message(text: str):
+        with messages_column:
+            with ui.element("div").classes("row-status"):
+                with ui.element("div").classes("bubble bubble-status") as wrapper:
+                    ui.label("Đang xử lý").classes("message-label")
+                    with ui.row().classes("items-center no-wrap"):
+                        with ui.element("div").classes("thinking-dots"):
+                            ui.element("div").classes("dot")
+                            ui.element("div").classes("dot")
+                            ui.element("div").classes("dot")
+                        ui.label(text).style(
+                            f"color: {TEXT_MUTED}; font-size: 0.95rem;"
+                        )
+        scroll_to_latest()
+        return wrapper
+
+    def add_error_message(text: str) -> None:
+        with messages_column:
+            with ui.element("div").classes("row-error"):
+                with ui.element("div").classes("bubble bubble-error"):
+                    ui.label("Lỗi").classes("message-label")
+                    ui.markdown(text).classes("message-markdown")
+        scroll_to_latest()
+
+    async def handle_send() -> None:
         question = input_field.value.strip()
         if not question:
             return
@@ -133,16 +345,8 @@ def chat_page():
         input_field.enabled = False
         send_btn.enabled = False
 
-        add_message(question, "msg-user")
-
-        with messages_column:
-            with ui.element().classes("thinking-dots") as thinking:
-                ui.element("div").classes("dot")
-                ui.element("div").classes("dot")
-                ui.element("div").classes("dot")
-                ui.label("Đang xử lý...").style(
-                    f"color: {HEINEKEN_GREEN_PRIMARY}; font-size: 0.9rem;"
-                )
+        add_user_message(question)
+        thinking = add_status_message("Đang đọc tài liệu và tổng hợp câu trả lời có trích dẫn...")
 
         try:
             answer = await asyncio.wait_for(
@@ -150,20 +354,29 @@ def chat_page():
                 timeout=60,
             )
             thinking.delete()
-            add_message(answer, "msg-assistant")
+            add_assistant_message(answer or "Không nhận được nội dung trả lời từ mô hình.")
         except asyncio.TimeoutError:
             thinking.delete()
-            add_message(
-                "Câu trả lời vượt quá thời gian chờ (60 giây). Vui lòng thử lại.",
-                "msg-timeout",
+            add_error_message(
+                "Câu trả lời vượt quá thời gian chờ **60 giây**. Hãy thử rút gọn câu hỏi hoặc hỏi theo từng ý nhỏ hơn."
             )
-        except Exception as e:
+        except Exception as exc:
             thinking.delete()
-            add_message(f"Lỗi xử lý: {e}", "msg-error")
+            add_error_message(f"Xử lý thất bại: `{exc}`")
         finally:
             input_field.enabled = True
             send_btn.enabled = True
             input_field.run_method("focus")
 
-    input_field.on("keydown.enter", handle_send)
+    async def on_enter(event) -> None:
+        args = event.args if isinstance(event.args, dict) else {}
+        if not args.get("shiftKey", False):
+            await handle_send()
+
+    input_field.on("keydown.enter", on_enter)
     send_btn.on_click(handle_send)
+
+    add_assistant_message(
+        "### Sẵn sàng demo\n"
+        "Tôi sẽ trả lời bằng **tiếng Việt**, chỉ dựa trên tài liệu đã nạp, và cuối mỗi câu sẽ có **Nguồn tham khảo**."
+    )
