@@ -1,8 +1,10 @@
 import asyncio
+import shutil
 import uuid
-from typing import Any
 from pathlib import Path
 
+from fastapi import UploadFile
+from fastapi.responses import JSONResponse
 from nicegui import app, ui
 
 from app.agent import ask_question
@@ -54,6 +56,22 @@ def delete_doc_file(folder_key: str, filename: str) -> None:
     filepath = DOCS_DIR / folder_key / filename
     if filepath.exists():
         filepath.unlink()
+
+
+@app.post("/api/upload")
+async def api_upload(folder: str, files: list[UploadFile]):
+    target = DOCS_DIR / folder
+    if not target.is_relative_to(DOCS_DIR):
+        return JSONResponse({"error": "Invalid folder"}, status_code=400)
+    target.mkdir(parents=True, exist_ok=True)
+    saved = []
+    for f in files:
+        if f.filename:
+            dest = target / f.filename
+            with open(dest, "wb") as fh:
+                shutil.copyfileobj(f.file, fh)
+            saved.append(f.filename)
+    return {"saved": saved}
 
 
 @ui.page("/")
@@ -464,19 +482,72 @@ def chat_page() -> None:
                 sidebar_scroll = ui.element("div").classes("sidebar-scroll")
 
                 # We'll populate folders here
-                folder_containers: dict[str, Any] = {}
+                folder_containers: dict = {}
 
                 with sidebar_scroll:
                     for key, cfg in FOLDER_CONFIG.items():
                         with ui.element("div").classes("folder-card") as folder_card:
                             with ui.row().classes("folder-header w-full no-wrap items-center"):
                                 ui.label(cfg["label"]).classes("folder-name")
-                                upload_btn = ui.button().props("flat dense")
-                                upload_btn.style(f"color: {PRIMARY};")
+
+                                target_dir = DOCS_DIR / key
+                                target_dir.mkdir(parents=True, exist_ok=True)
+
+                                # Simple compact upload button using native file input
+                                upload_wrapper = ui.element("div").style(
+                                    "position:relative;display:inline-block;"
+                                )
+                                upload_btn = ui.element("button").props("flat dense")
+                                upload_btn.style(f"""
+                                    padding: 4px 10px;
+                                    border-radius: 6px;
+                                    border: 1px solid {BORDER};
+                                    background: {SURFACE};
+                                    color: {PRIMARY};
+                                    font-size: 0.75rem;
+                                    font-weight: 600;
+                                    cursor: pointer;
+                                    display: inline-flex;
+                                    align-items: center;
+                                    gap: 3px;
+                                """)
                                 with upload_btn:
                                     with ui.row().classes("no-wrap items-center gap-1"):
-                                        ui.icon("upload", size="xs")
-                                        ui.label("Upload").style("font-size:0.8rem;")
+                                        ui.icon("arrow_upward", size="xs").style("font-size:13px;")
+                                        ui.label("Upload").style("font-size:0.72rem;")
+
+                                def make_upload_trigger(fk: str):
+                                    def trigger(_):
+                                        ui.run_javascript(f"""
+                                            (async () => {{
+                                                const input = document.createElement('input');
+                                                input.type = 'file';
+                                                input.multiple = true;
+                                                input.accept = '.md,.txt,.pdf,.docx,.doc,.xlsx,.csv';
+                                                input.onchange = async (e) => {{
+                                                    const files = e.target.files;
+                                                    if (!files || files.length === 0) return;
+                                                    const formData = new FormData();
+                                                    for (const f of files) {{
+                                                        formData.append('files', f, f.name);
+                                                    }}
+                                                    try {{
+                                                        const resp = await fetch('/api/upload?folder={fk}', {{
+                                                            method: 'POST',
+                                                            body: formData,
+                                                        }});
+                                                        if (resp.ok) {{
+                                                            window.location.reload();
+                                                        }}
+                                                    }} catch (err) {{
+                                                        console.error('Upload failed:', err);
+                                                    }}
+                                                }};
+                                                input.click();
+                                            }})();
+                                        """)
+                                    return trigger
+                                upload_btn.on("click", make_upload_trigger(key))
 
                             with ui.row().classes("folder-meta"):
                                 ui.label(cfg["hint"]).classes("folder-hint")
@@ -491,7 +562,6 @@ def chat_page() -> None:
                                 "badge": badge,
                                 "empty_msg": empty_msg,
                                 "file_list": file_list_el,
-                                "upload_btn": upload_btn,
                             }
 
             # --- CHAT AREA ---
@@ -546,30 +616,6 @@ def chat_page() -> None:
                         with delete_btn:
                             ui.icon("close", size="xs")
                         delete_btn.on("click", make_delete_handler(key, fname))
-
-    def handle_upload(folder_key: str) -> None:
-        """Open a file dialog and upload files to the given folder."""
-        target_dir = DOCS_DIR / folder_key
-        target_dir.mkdir(parents=True, exist_ok=True)
-
-        def on_upload(e):
-            if e.content:
-                for item in e.content:
-                    dest = target_dir / item.name
-                    with open(dest, "wb") as f:
-                        for chunk in item.file.read_chunks():
-                            f.write(chunk)
-                refresh_folder_view()
-
-        ui.upload(
-            on_upload=on_upload,
-            auto_upload=True,
-            max_file_size=10_000_000,
-        ).props("flat dense").style("position:fixed;top:-9999px;opacity:0;").run_method("click")
-
-    # Bind upload buttons
-    for key, containers in folder_containers.items():
-        containers["upload_btn"].on("click", lambda e, k=key: handle_upload(k))
 
     # Initial render
     refresh_folder_view()

@@ -3,12 +3,12 @@
 from nicegui import ui
 
 from app.config import AI_LEGAL_MODEL, OPENAI_BASE_URL
-from app.ui import chat_page
-from app.workspace import get_workspace_summary
+
+# Import ui module to register the upload endpoint and chat_page
+import app.ui  # noqa: F401
 
 if __name__ in {"__main__", "__mp_main__"}:
     print("AI Legal MVP starting...")
     print(f"Model: {AI_LEGAL_MODEL}")
     print(f"Endpoint: {OPENAI_BASE_URL}")
-    print(get_workspace_summary())
     ui.run(title="AI Legal Assistant", port=8080)
