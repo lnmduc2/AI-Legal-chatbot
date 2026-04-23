@@ -1,6 +1,6 @@
-# Document Index: law/24-2018-qh14_2012202520.md
+# Document Index: law/Luật An ninh mạng.md
 
-- Original path: /docs/law/24-2018-qh14_2012202520.md
+- Original path: /docs/law/Luật An ninh mạng.md
 - Section: law
 - Title/first line: 42 CÔNG BÁO/Số 775 + 776/Ngày 14-7-2018
 

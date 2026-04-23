@@ -85,56 +85,6 @@ def _message_text(message: Any) -> str:
     return "\n".join(text_parts).strip()
 
 
-def _looks_like_planning(text: str) -> bool:
-    """Check if the text reads like an intermediate planning step."""
-    normalized = text.strip().lower()
-    if not normalized:
-        return True
-
-    planning_prefixes = (
-        "tôi sẽ",
-        "tôi cần",
-        "trước tiên",
-        "để trả lời",
-        "mình sẽ",
-    )
-    return any(normalized.startswith(prefix) for prefix in planning_prefixes)
-
-
-def _is_final_answer(text: str) -> bool:
-    """Check whether a message is a complete, user-facing answer."""
-    if not text.strip():
-        return False
-    if _looks_like_planning(text):
-        return False
-    return True
-
-
-def _extract_best_answer(messages: list[Any]) -> str:
-    """Return the latest user-facing answer from the agent conversation.
-
-    Prioritizes answers that contain citations (for doc-grounded questions).
-    Falls back to the latest valid assistant message that is not planning text.
-    """
-    cited_answer: str | None = None
-    fallback_answer: str | None = None
-
-    for message in reversed(messages):
-        if type(message).__name__ != "AIMessage":
-            continue
-        text = _message_text(message)
-        if not text or _looks_like_planning(text):
-            continue
-
-        if cited_answer is None and "nguồn tham khảo" in text.lower():
-            cited_answer = text
-
-        if fallback_answer is None:
-            fallback_answer = text
-
-    return cited_answer or fallback_answer or ""
-
-
 def get_agent():
     """Get or create a cached deep agent instance."""
     documents_signature = get_documents_signature()
@@ -160,7 +110,9 @@ async def ask_question(question: str, session_id: str | None = None) -> str:
         config={"configurable": {"thread_id": session_id}},
     )
 
-    answer = _extract_best_answer(result.get("messages", []))
-    if answer:
-        return answer
+    messages = result.get("messages", [])
+    if messages:
+        text = _message_text(messages[-1])
+        if text:
+            return text
     return "Cơ sở kiến thức hiện tại không đủ để tạo ra câu trả lời hoàn chỉnh cho câu hỏi này."
