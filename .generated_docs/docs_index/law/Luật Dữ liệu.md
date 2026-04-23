@@ -1,0 +1,65 @@
+# Document Index: law/Luật Dữ liệu.md
+
+- Original path: /docs/law/Luật Dữ liệu.md
+- Section: law
+- Title/first line: 62 CÔNG BÁO/Số 1523 + 1524/Ngày 29-12-2024
+
+## Footer metadata
+- Luật này được Quốc hội nước Cộng hòa xã hội chủ nghĩa Việt Nam khóa XV,
+- Chức danh ký: CHỦ TỊCH QUỐC HỘI
+- Người ký: Trần Thanh Mẫn
+
+## Article and chapter headings
+- Chương I
+- Điều 1. Phạm vi điều chỉnh
+- Điều 2. Đối tượng áp dụng
+- Điều 3. Giải thích từ ngữ
+- Điều 4. Áp dụng Luật Dữ liệu
+- Điều 5. Nguyên tắc xây dựng, phát triển, bảo vệ, quản trị, xử lý, sử dụng
+- Điều 6. Chính sách của Nhà nước về dữ liệu
+- Điều 7. Hợp tác quốc tế về dữ liệu
+- Điều 8. Quản lý nhà nước về dữ liệu
+- Điều 9. Xây dựng, phát triển dữ liệu trong các cơ quan Đảng, Ủy ban Mặt
+- Điều 10. Các hành vi bị nghiêm cấm
+- Chương II
+- Điều 11. Thu thập, tạo lập dữ liệu
+- Điều 12. Bảo đảm chất lượng dữ liệu
+- Điều 13. Phân loại dữ liệu
+- Điều 14. Hoạt động lưu trữ dữ liệu
+- Điều 15. Quản trị, quản lý dữ liệu
+- Điều 16. Truy cập, truy xuất dữ liệu
+- Điều 17. Kết nối, chia sẻ, điều phối dữ liệu
+- Điều 18. Cung cấp dữ liệu cho cơ quan nhà nước
+- Điều 19. Phân tích, tổng hợp dữ liệu
+- Điều 20. Xác nhận, xác thực dữ liệu
+- Điều 21. Công khai dữ liệu
+- Điều 22. Mã hóa, giải mã dữ liệu
+- Điều 23. Chuyển, xử lý dữ liệu xuyên biên giới
+- Điều 24. Hoạt động khoa học, công nghệ và đổi mới sáng tạo trong xây
+- Điều 25. Xác định và quản lý rủi ro phát sinh trong xử lý dữ liệu
+- Điều 26. Các hoạt động khác trong xử lý dữ liệu
+- Điều 27. Bảo vệ dữ liệu
+- Điều 28. Tiêu chuẩn, quy chuẩn kỹ thuật về dữ liệu
+- Điều 29. Quỹ phát triển dữ liệu quốc gia
+- Chương III
+- Điều 30. Cơ sở hạ tầng của Trung tâm dữ liệu quốc gia
+- Điều 31. Trách nhiệm của Trung tâm dữ liệu quốc gia
+- Điều 32. Bảo đảm nguồn lực xây dựng, phát triển Trung tâm dữ liệu
+- Điều 33. Xây dựng Cơ sở dữ liệu tổng hợp quốc gia
+- Điều 34. Thu thập, cập nhật, đồng bộ dữ liệu vào Cơ sở dữ liệu tổng hợp
+- Điều 35. Khai thác và sử dụng Cơ sở dữ liệu tổng hợp quốc gia
+- Điều 36. Kết nối, chia sẻ dữ liệu với Cơ sở dữ liệu tổng hợp quốc gia
+- Điều 37. Cung cấp dữ liệu cho Cơ sở dữ liệu tổng hợp quốc gia
+- Điều 38. Phí khai thác, sử dụng dữ liệu trong Cơ sở dữ liệu tổng hợp quốc
+- Chương IV
+- Điều 39. Sản phẩm, dịch vụ về dữ liệu
+- Điều 40. Sản phẩm, dịch vụ trung gian dữ liệu
+- Điều 41. Sản phẩm, dịch vụ phân tích, tổng hợp dữ liệu
+- Điều 42. Sàn dữ liệu
+- Điều 43. Trách nhiệm của tổ chức cung cấp sản phẩm, dịch vụ trung gian
+- Chương V
+- Điều 44. Sửa đổi, bổ sung một số điều của các luật có liên quan
+- Điều 45. Hiệu lực thi hành
+- Điều 46. Quy định chuyển tiếp
+
+Use this index to locate the right source quickly, then read the original file under /docs for exact wording and citations.

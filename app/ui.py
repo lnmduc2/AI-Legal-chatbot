@@ -60,6 +60,7 @@ def delete_doc_file(folder_key: str, filename: str) -> None:
 
 @app.post("/api/upload")
 async def api_upload(folder: str, files: list[UploadFile]):
+    global _sidebar_refresh_counter
     target = DOCS_DIR / folder
     if not target.is_relative_to(DOCS_DIR):
         return JSONResponse({"error": "Invalid folder"}, status_code=400)
@@ -71,12 +72,61 @@ async def api_upload(folder: str, files: list[UploadFile]):
             with open(dest, "wb") as fh:
                 shutil.copyfileobj(f.file, fh)
             saved.append(f.filename)
+    # Increment counter so active sessions pick up the change without a full
+    # page reload (which would wipe chat history).
+    _sidebar_refresh_counter += 1
     return {"saved": saved}
+
+
+# Store a global counter; incrementing it signals all page instances to refresh
+# the sidebar without losing their own message history.
+_sidebar_refresh_counter = 0
+
+
+def trigger_sidebar_refresh() -> None:
+    """Signal all active sessions to refresh their sidebar view."""
+    global _sidebar_refresh_counter
+    _sidebar_refresh_counter += 1
 
 
 @ui.page("/")
 def chat_page() -> None:
     session_id = get_session_id()
+    # Capture the current sidebar refresh counter so we can detect when a
+    # refresh signal is sent from upload/delete handlers.
+    refresh_slot = {"count": _sidebar_refresh_counter}
+
+    # We'll populate folders here
+    folder_containers: dict = {}
+
+    def refresh_folder_view():
+        """Re-render all folder cards from the current docs directory state."""
+        docs = list_docs_files()
+        for key, containers in folder_containers.items():
+            files = docs.get(key, [])
+            count = len(files)
+            containers["badge"].text = f"{count} file{'s' if count != 1 else ''}"
+            containers["empty_msg"].visible = count == 0
+
+            # Clear file list
+            containers["file_list"].clear()
+
+            for fname in files:
+                with containers["file_list"]:
+                    with ui.element("div").classes("file-row"):
+                        ui.label(fname).classes("file-name")
+
+                        def make_delete_handler(fk: str, fn: str):
+                            def handler():
+                                delete_doc_file(fk, fn)
+                                trigger_sidebar_refresh()
+                                refresh_folder_view()
+                            return handler
+
+                        delete_btn = ui.element("button").props("flat dense").classes("file-delete-btn")
+                        with delete_btn:
+                            ui.icon("close", size="xs")
+                        delete_btn.on("click", make_delete_handler(key, fname))
 
     ui.add_head_html(
         f"""
@@ -481,9 +531,6 @@ def chat_page() -> None:
 
                 sidebar_scroll = ui.element("div").classes("sidebar-scroll")
 
-                # We'll populate folders here
-                folder_containers: dict = {}
-
                 with sidebar_scroll:
                     for key, cfg in FOLDER_CONFIG.items():
                         with ui.element("div").classes("folder-card") as folder_card:
@@ -532,13 +579,10 @@ def chat_page() -> None:
                                                         formData.append('files', f, f.name);
                                                     }}
                                                     try {{
-                                                        const resp = await fetch('/api/upload?folder={fk}', {{
+                                                        await fetch('/api/upload?folder={fk}', {{
                                                             method: 'POST',
                                                             body: formData,
                                                         }});
-                                                        if (resp.ok) {{
-                                                            window.location.reload();
-                                                        }}
                                                     }} catch (err) {{
                                                         console.error('Upload failed:', err);
                                                     }}
@@ -589,33 +633,15 @@ def chat_page() -> None:
 
     # ===== HELPER FUNCTIONS =====
 
-    def refresh_folder_view() -> None:
-        """Re-render all folder cards from the current docs directory state."""
-        docs = list_docs_files()
-        for key, containers in folder_containers.items():
-            files = docs.get(key, [])
-            count = len(files)
-            containers["badge"].text = f"{count} file{'s' if count != 1 else ''}"
-            containers["empty_msg"].visible = count == 0
+    # Poll for sidebar refresh signals from upload/delete handlers.
+    # Each page instance tracks its own slot count; when the global counter
+    # advances, we refresh the sidebar without touching chat messages.
+    async def poll_sidebar_refresh() -> None:
+        if _sidebar_refresh_counter > refresh_slot["count"]:
+            refresh_slot["count"] = _sidebar_refresh_counter
+            refresh_folder_view()
 
-            # Clear file list
-            containers["file_list"].clear()
-
-            for fname in files:
-                with containers["file_list"]:
-                    with ui.element("div").classes("file-row"):
-                        ui.label(fname).classes("file-name")
-
-                        def make_delete_handler(fk: str, fn: str):
-                            def handler():
-                                delete_doc_file(fk, fn)
-                                refresh_folder_view()
-                            return handler
-
-                        delete_btn = ui.element("button").props("flat dense").classes("file-delete-btn")
-                        with delete_btn:
-                            ui.icon("close", size="xs")
-                        delete_btn.on("click", make_delete_handler(key, fname))
+    ui.timer(0.5, poll_sidebar_refresh, once=False)
 
     # Initial render
     refresh_folder_view()
@@ -708,6 +734,5 @@ def chat_page() -> None:
     send_btn.on_click(handle_send)
 
     add_assistant_message(
-        "### Sẵn sàng demo\n"
         "Tôi sẽ trả lời bằng **tiếng Việt**, chỉ dựa trên tài liệu đã nạp, và cuối mỗi câu sẽ có **Nguồn tham khảo**."
     )

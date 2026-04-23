@@ -32,6 +32,11 @@ class _CustomSummarization(SummarizationMiddleware):
         return "CustomSummarization"
 
 
+# Global checkpointer that persists across agent rebuilds so doc changes
+# don't discard conversation history.
+_global_checkpointer = InMemorySaver()
+
+
 def _build_agent():
     """Create a deep agent with checkpointing, summarization, and filesystem-backed memory."""
     ensure_doc_indexes()
@@ -59,14 +64,12 @@ def _build_agent():
         keep=("messages", CONTEXT_KEEP_MESSAGES),
     )
 
-    checkpointer = InMemorySaver()
-
     return create_deep_agent(
         model=llm,
         system_prompt=build_system_prompt(),
         backend=backend,
         middleware=(summarization,),
-        checkpointer=checkpointer,
+        checkpointer=_global_checkpointer,
     )
 
 
