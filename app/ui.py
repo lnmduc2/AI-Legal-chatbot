@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 from nicegui import app, ui
 
 from app.agent import ask_question
+from app.doc_index import ensure_doc_indexes
 
 PRIMARY = "#007A33"
 PRIMARY_DARK = "#0A4A24"
@@ -72,6 +73,7 @@ async def api_upload(folder: str, files: list[UploadFile]):
             with open(dest, "wb") as fh:
                 shutil.copyfileobj(f.file, fh)
             saved.append(f.filename)
+    ensure_doc_indexes()
     # Increment counter so active sessions pick up the change without a full
     # page reload (which would wipe chat history).
     _sidebar_refresh_counter += 1
@@ -119,6 +121,7 @@ def chat_page() -> None:
                         def make_delete_handler(fk: str, fn: str):
                             def handler():
                                 delete_doc_file(fk, fn)
+                                ensure_doc_indexes()
                                 trigger_sidebar_refresh()
                                 refresh_folder_view()
                             return handler
