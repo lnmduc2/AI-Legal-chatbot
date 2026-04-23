@@ -29,28 +29,35 @@ uv run python benchmark.py
 app/
 ├── main.py         # NiceGUI entry point
 ├── ui.py           # Chat UI (Heineken-green theme)
-├── agent.py        # DeepAgent service
+├── agent.py        # DeepAgent service (checkpointer + summarization)
 ├── workspace.py    # Agent filesystem workspace
 ├── llm.py          # OpenAI-compatible model config
-├── memory.py       # Visible filesystem memory
 ├── prompts.py      # System prompt + doc paths
-└── config.py       # Environment and path config
+└── config.py       # Environment and memory config
 
 docs/
 ├── law/            # Law documents
 ├── policy/         # Company policy
 └── faq/            # FAQ examples
-
-demo_memory/        # Visible conversation memory
 ```
 
 ## Features
 
 - **Docs-grounded answers**: Agent reads files directly, no RAG pipeline
 - **Citation-aware**: Every answer cites document source and section
-- **Visible memory**: Session Q&A persisted to `demo_memory/` as JSON files
+- **Session memory**: Conversation state persisted across turns via LangGraph `InMemorySaver` checkpointing, keyed by browser `session_id`
+- **Auto-compression**: Summarization middleware activates when context exceeds the configured threshold, keeping recent turns verbatim
 - **NiceGUI chat UI**: Heineken-green theme with thinking indicator and 60s timeout
 - **Benchmark script**: 5 fixed questions (3 law + 2 policy) for validation
+
+## Memory
+
+Conversation memory uses built-in LangGraph/DeepAgents primitives:
+
+- **Checkpointer**: `InMemorySaver` persists thread state across invocations using the browser `session_id` as `thread_id`
+- **Summarization**: DeepAgents `SummarizationMiddleware` auto-summarizes older conversation turns when context exceeds the trigger threshold (default 80k tokens), keeping the most recent messages for short-term coherence
+- **Session isolation**: Each browser session gets an isolated memory state; different sessions do not share context
+- **Config**: Adjust thresholds in `app/config.py` (`CONTEXT_SUMMARIZE_TRIGGER_TOKENS`, `CONTEXT_KEEP_MESSAGES`)
 
 
 ## Demo

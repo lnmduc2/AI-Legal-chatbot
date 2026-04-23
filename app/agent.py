@@ -4,8 +4,15 @@ from typing import Any
 
 from deepagents import create_deep_agent
 from deepagents.backends import CompositeBackend, FilesystemBackend, StateBackend
+from deepagents.middleware.summarization import SummarizationMiddleware
+from langgraph.checkpoint.memory import InMemorySaver
 
-from app.config import DOCS_DIR, MEMORY_DIR
+from app.config import (
+    CONTEXT_KEEP_MESSAGES,
+    CONTEXT_SUMMARIZE_TRIGGER_TOKENS,
+    DOCS_DIR,
+    MEMORY_DIR,
+)
 from app.doc_index import DOCS_INDEX_DIR, DOCS_INDEX_MOUNT, ensure_doc_indexes
 from app.llm import build_llm
 from app.prompts import build_system_prompt, get_documents_signature
@@ -17,27 +24,49 @@ _agent_cache: dict[str, Any] = {}
 DOCS_MOUNT = "/docs"
 
 
+class _CustomSummarization(SummarizationMiddleware):
+    """Wrapper that changes the middleware name to avoid DeepAgents duplicate check."""
+
+    @property
+    def name(self) -> str:
+        return "CustomSummarization"
+
+
 def _build_agent():
-    """Create a deep agent with filesystem-backed memory and docs workspace."""
+    """Create a deep agent with checkpointing, summarization, and filesystem-backed memory."""
     ensure_doc_indexes()
     llm = build_llm()
+
+    backend = CompositeBackend(
+        default=StateBackend(),
+        routes={
+            "/memories/": FilesystemBackend(
+                root_dir=str(MEMORY_DIR), virtual_mode=True
+            ),
+            DOCS_MOUNT: FilesystemBackend(
+                root_dir=str(DOCS_DIR), virtual_mode=True
+            ),
+            DOCS_INDEX_MOUNT: FilesystemBackend(
+                root_dir=str(DOCS_INDEX_DIR), virtual_mode=True
+            ),
+        },
+    )
+
+    summarization = _CustomSummarization(
+        model=llm,
+        backend=backend,
+        trigger=("tokens", CONTEXT_SUMMARIZE_TRIGGER_TOKENS),
+        keep=("messages", CONTEXT_KEEP_MESSAGES),
+    )
+
+    checkpointer = InMemorySaver()
+
     return create_deep_agent(
         model=llm,
         system_prompt=build_system_prompt(),
-        backend=CompositeBackend(
-            default=StateBackend(),
-            routes={
-                "/memories/": FilesystemBackend(
-                    root_dir=str(MEMORY_DIR), virtual_mode=True
-                ),
-                DOCS_MOUNT: FilesystemBackend(
-                    root_dir=str(DOCS_DIR), virtual_mode=True
-                ),
-                DOCS_INDEX_MOUNT: FilesystemBackend(
-                    root_dir=str(DOCS_INDEX_DIR), virtual_mode=True
-                ),
-            },
-        ),
+        backend=backend,
+        middleware=(summarization,),
+        checkpointer=checkpointer,
     )
 
 
@@ -56,11 +85,11 @@ def _message_text(message: Any) -> str:
     return "\n".join(text_parts).strip()
 
 
-def _is_final_answer(text: str) -> bool:
-    """Check whether a message looks like the final answer for the user."""
+def _looks_like_planning(text: str) -> bool:
+    """Check if the text reads like an intermediate planning step."""
     normalized = text.strip().lower()
     if not normalized:
-        return False
+        return True
 
     planning_prefixes = (
         "tôi sẽ",
@@ -69,21 +98,41 @@ def _is_final_answer(text: str) -> bool:
         "để trả lời",
         "mình sẽ",
     )
-    if any(normalized.startswith(prefix) for prefix in planning_prefixes):
-        return False
+    return any(normalized.startswith(prefix) for prefix in planning_prefixes)
 
-    return "nguồn tham khảo" in normalized
+
+def _is_final_answer(text: str) -> bool:
+    """Check whether a message is a complete, user-facing answer."""
+    if not text.strip():
+        return False
+    if _looks_like_planning(text):
+        return False
+    return True
 
 
 def _extract_best_answer(messages: list[Any]) -> str:
-    """Return the latest user-facing answer from the agent conversation."""
+    """Return the latest user-facing answer from the agent conversation.
+
+    Prioritizes answers that contain citations (for doc-grounded questions).
+    Falls back to the latest valid assistant message that is not planning text.
+    """
+    cited_answer: str | None = None
+    fallback_answer: str | None = None
+
     for message in reversed(messages):
         if type(message).__name__ != "AIMessage":
             continue
         text = _message_text(message)
-        if _is_final_answer(text):
-            return text
-    return ""
+        if not text or _looks_like_planning(text):
+            continue
+
+        if cited_answer is None and "nguồn tham khảo" in text.lower():
+            cited_answer = text
+
+        if fallback_answer is None:
+            fallback_answer = text
+
+    return cited_answer or fallback_answer or ""
 
 
 def get_agent():
