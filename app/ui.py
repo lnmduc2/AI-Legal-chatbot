@@ -9,6 +9,7 @@ from nicegui import app, ui
 
 from app.agent import ask_question
 from app.doc_index import ensure_doc_indexes
+from app.config import RESPONSE_TIMEOUT_SECONDS
 
 PRIMARY = "#007A33"
 PRIMARY_DARK = "#0A4A24"
@@ -711,14 +712,14 @@ def chat_page() -> None:
         try:
             answer = await asyncio.wait_for(
                 ask_question(question, session_id),
-                timeout=60,
+                timeout=RESPONSE_TIMEOUT_SECONDS,
             )
             thinking.delete()
             add_assistant_message(answer or "Không nhận được nội dung trả lời từ mô hình.")
         except asyncio.TimeoutError:
             thinking.delete()
             add_error_message(
-                "Câu trả lời vượt quá thời gian chờ **60 giây**. Hãy thử rút gọn câu hỏi hoặc hỏi theo từng ý nhỏ hơn."
+                "Câu trả lời vượt quá thời gian chờ. Hãy thử rút gọn câu hỏi hoặc hỏi theo từng ý nhỏ hơn."
             )
         except Exception as exc:
             thinking.delete()
