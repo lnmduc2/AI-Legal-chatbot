@@ -1,3 +1,52 @@
+# Secrets and local env
 .env
-.venv
-.vscode
+.env.local
+.env.*.local
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+
+# uv / packaging
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Testing & tools
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.tox/
+.hypothesis/
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Runtime: mail + event log (data/ directory is kept via .gitkeep)
+data/*.json
+
+# Generated doc index (rebuilt from docs/ at runtime)
+.generated_docs/
+
+# Scratch
+temp_law/
+
+# Session checkpointer / demo memory (bind-mounted in Docker)
+demo_memory/
