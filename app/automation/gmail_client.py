@@ -55,6 +55,20 @@ class GmailClient:
             smtp.login(account.email, account.password)
             smtp.send_message(message)
 
+    def get_inbox_highest_uid(self, *, account: MailAccount) -> int:
+        """Return the largest IMAP UID in INBOX, or 0 if empty / unconfigured."""
+        if not account.is_configured:
+            return 0
+
+        with imaplib.IMAP4_SSL(self.config.imap_host, self.config.imap_port) as mail:
+            mail.login(account.email, account.password)
+            mail.select("INBOX")
+            status, data = mail.uid("search", None, "ALL")
+            if status != "OK":
+                raise RuntimeError("Failed to search IMAP inbox.")
+            all_uids = [int(item) for item in data[0].split() if item]
+            return max(all_uids) if all_uids else 0
+
     def fetch_messages_since_uid(
         self,
         *,

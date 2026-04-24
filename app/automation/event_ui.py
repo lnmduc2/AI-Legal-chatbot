@@ -1,5 +1,3 @@
-import asyncio
-
 from nicegui import ui
 
 from app.automation.runtime import get_automation_services
@@ -18,6 +16,7 @@ ERROR_TEXT = "#9A2B1F"
 def event_log_page() -> None:
     services = get_automation_services()
     filter_state = {"value": "all"}
+    refresh_timer: ui.timer | None = None
 
     ui.add_head_html(
         f"""
@@ -69,62 +68,7 @@ def event_log_page() -> None:
         """
     )
 
-    summary_labels = {}
-
-    async def refresh_view() -> None:
-        summary = services.event_store.summary()
-        for key, label in summary_labels.items():
-            label.set_text(str(summary.get(key, 0)))
-
-        readiness = []
-        readiness.append("poller ready" if services.poller.is_ready() else "poller not configured")
-        readiness.append("source sender ready" if services.config.source_ready else "source sender not configured")
-        status_label.set_text(" | ".join(readiness))
-
-        events = services.event_store.list_events()
-        if filter_state["value"] != "all":
-            events = [event for event in events if event.status == filter_state["value"]]
-
-        list_container.clear()
-        with list_container:
-            if not events:
-                ui.label("No automation events yet. Send a legal update from the source app or trigger a poll.").classes(
-                    "text-sm"
-                ).style(f"color: {TEXT_MUTED};")
-                return
-
-            for event in events:
-                with ui.column().classes("event-row w-full gap-2"):
-                    with ui.row().classes("w-full items-center"):
-                        with ui.column().classes("gap-0"):
-                            ui.label(event.subject or "(no subject)").classes("text-md font-bold")
-                            ui.label(event.created_at).classes("text-xs").style(f"color: {TEXT_MUTED};")
-                        ui.space()
-                        ui.label(event.status.upper()).classes("event-badge")
-                    ui.label(f"Sender: {event.sender_email or event.sender}").classes("text-sm")
-                    ui.label(f"Action: {event.action}").classes("text-sm")
-                    ui.label(f"Filename: {event.filename or '-'}").classes("text-sm")
-                    ui.label(f"Doc path: {event.doc_path or '-'}").classes("text-sm")
-                    ui.label(f"Heuristic: {event.heuristic_reason}").classes("text-sm")
-                    ui.label(
-                        "Notifications: "
-                        f"{event.notification_status}"
-                        + (
-                            f" -> {', '.join(event.notification_recipients)}"
-                            if event.notification_recipients
-                            else ""
-                        )
-                    ).classes("text-sm")
-                    if event.error:
-                        ui.label(event.error).classes("event-error")
-
-    async def run_poll_now() -> None:
-        try:
-            processed = await asyncio.to_thread(services.poller.poll_once)
-            ui.notify(f"Poll complete. Processed {processed} message(s).", color="positive")
-        except Exception as exc:
-            ui.notify(f"Poll failed: {exc}", color="negative")
-        await refresh_view()
+    summary_labels: dict = {}
 
     with ui.column().classes("events-shell"):
         status_label = ui.label("")
@@ -152,13 +96,10 @@ def event_log_page() -> None:
 
             def on_filter_change(_) -> None:
                 filter_state["value"] = filter_select.value or "all"
-                ui.timer(0.01, refresh_view, once=True)
+                refresh_view()
 
             filter_select.on("update:model-value", on_filter_change)
-            ui.button("Refresh", on_click=refresh_view).props("outline")
-            ui.button("Poll inbox now", on_click=run_poll_now).props("unelevated").style(
-                f"background: {PRIMARY}; color: white;"
-            )
+            ui.button("Refresh", on_click=lambda: refresh_view()).props("outline")
 
         with ui.row().classes("w-full gap-3 wrap"):
             for key, label in [
@@ -174,6 +115,63 @@ def event_log_page() -> None:
                     summary_labels[key] = ui.label("0").classes("text-2xl font-bold")
 
         list_container = ui.column().classes("w-full")
+        ui.label(
+            f"UI auto-refresh: every 5s. "
+            f"Server inbox poller: every {services.config.poll_interval_seconds}s "
+            f"(independent of this page).",
+        ).classes("text-xs").style(f"color: {TEXT_MUTED}; margin-top: 6px;")
 
-    ui.timer(5.0, refresh_view, once=False)
-    ui.timer(0.01, refresh_view, once=True)
+        def refresh_view() -> None:
+            nonlocal refresh_timer
+            if list_container.is_deleted or status_label.is_deleted:
+                if refresh_timer is not None:
+                    refresh_timer.cancel()
+                return
+            summary = services.event_store.summary()
+            for key, label in summary_labels.items():
+                label.set_text(str(summary.get(key, 0)))
+
+            readiness = []
+            readiness.append("poller ready" if services.poller.is_ready() else "poller not configured")
+            readiness.append("source sender ready" if services.config.source_ready else "source sender not configured")
+            status_label.set_text(" | ".join(readiness))
+
+            events = services.event_store.list_events()
+            if filter_state["value"] != "all":
+                events = [event for event in events if event.status == filter_state["value"]]
+
+            list_container.clear()
+            with list_container:
+                if not events:
+                    ui.label("No automation events yet. Send a legal update from the source app, then wait for the poller to process the message.").classes(
+                        "text-sm"
+                    ).style(f"color: {TEXT_MUTED};")
+                    return
+
+                for event in events:
+                    with ui.column().classes("event-row w-full gap-2"):
+                        with ui.row().classes("w-full items-center"):
+                            with ui.column().classes("gap-0"):
+                                ui.label(event.subject or "(no subject)").classes("text-md font-bold")
+                                ui.label(event.created_at).classes("text-xs").style(f"color: {TEXT_MUTED};")
+                            ui.space()
+                            ui.label(event.status.upper()).classes("event-badge")
+                        ui.label(f"Sender: {event.sender_email or event.sender}").classes("text-sm")
+                        ui.label(f"Action: {event.action}").classes("text-sm")
+                        ui.label(f"Filename: {event.filename or '-'}").classes("text-sm")
+                        ui.label(f"Doc path: {event.doc_path or '-'}").classes("text-sm")
+                        ui.label(f"Heuristic: {event.heuristic_reason}").classes("text-sm")
+                        ui.label(
+                            "Notifications: "
+                            f"{event.notification_status}"
+                            + (
+                                f" -> {', '.join(event.notification_recipients)}"
+                                if event.notification_recipients
+                                else ""
+                            )
+                        ).classes("text-sm")
+                        if event.error:
+                            ui.label(event.error).classes("event-error")
+
+        refresh_timer = ui.timer(5.0, refresh_view, once=False, immediate=True)
+        refresh_view()

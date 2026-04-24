@@ -45,3 +45,22 @@ def test_mail_state_store_tracks_processed_messages(tmp_path) -> None:
 
     state.update_last_seen_uid(50)
     assert state.get_last_seen_uid() == 50
+
+
+def test_mail_state_inbox_baseline_skips_history_until_applied(tmp_path) -> None:
+    state = MailStateStore(tmp_path / "mail_state.json")
+    assert state.needs_inbox_baseline() is True
+
+    state.apply_inbox_baseline(100)
+    assert state.needs_inbox_baseline() is False
+    assert state.get_last_seen_uid() == 100
+
+
+def test_mail_state_migration_last_seen_nonzero_needs_no_baseline(tmp_path) -> None:
+    p = tmp_path / "mail_state.json"
+    p.write_text(
+        '{"processed_message_ids": [], "last_seen_uid": 77}',
+        encoding="utf-8",
+    )
+    state = MailStateStore(p)
+    assert state.needs_inbox_baseline() is False

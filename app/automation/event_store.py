@@ -68,7 +68,14 @@ class MailStateStore:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         if not self.path.exists():
             self.path.write_text(
-                json.dumps({"processed_message_ids": [], "last_seen_uid": 0}, indent=2),
+                json.dumps(
+                    {
+                        "processed_message_ids": [],
+                        "last_seen_uid": 0,
+                        "inbox_baseline_applied": False,
+                    },
+                    indent=2,
+                ),
                 encoding="utf-8",
             )
 
@@ -79,6 +86,23 @@ class MailStateStore:
             return json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError:
             return {"processed_message_ids": [], "last_seen_uid": 0}
+
+    def needs_inbox_baseline(self) -> bool:
+        """True until we have anchored the UID cursor (skip mailbox history on first run)."""
+        payload = self._read_payload()
+        if payload.get("inbox_baseline_applied") is True:
+            return False
+        if int(payload.get("last_seen_uid", 0) or 0) > 0:
+            return False
+        return True
+
+    def apply_inbox_baseline(self, highest_uid: int) -> None:
+        with self._lock:
+            payload = self._read_payload()
+            current = int(payload.get("last_seen_uid", 0) or 0)
+            payload["last_seen_uid"] = max(current, int(highest_uid))
+            payload["inbox_baseline_applied"] = True
+            self._write_payload(payload)
 
     def _write_payload(self, payload: dict) -> None:
         self.path.write_text(

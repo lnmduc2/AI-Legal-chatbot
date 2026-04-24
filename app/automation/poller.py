@@ -50,6 +50,16 @@ class LegalMailPoller:
         if not self.is_ready():
             return 0
 
+        if self.state_store.needs_inbox_baseline():
+            top = self.gmail_client.get_inbox_highest_uid(account=self.config.admin_account)
+            self.state_store.apply_inbox_baseline(top)
+            print(
+                "Legal automation: inbox UID baseline set to "
+                f"{top} (emails already in the box at this point are not ingested).",
+                flush=True,
+            )
+            return 0
+
         last_seen_uid = self.state_store.get_last_seen_uid()
         messages = self.gmail_client.fetch_messages_since_uid(
             account=self.config.admin_account,
