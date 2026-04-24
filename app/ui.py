@@ -523,6 +523,9 @@ def chat_page() -> None:
                     "Trả lời dựa trên tài liệu đã nạp, có trích dẫn nguồn để kiểm chứng khi demo."
                 ).classes("topbar-subtitle")
             ui.space()
+            ui.link("Event Log", "/events").style(
+                "color: white; font-size: 0.82rem; font-weight: 700; margin-right: 12px;"
+            )
             ui.label(f"Session {session_id}").classes("session-chip")
 
         # ===== BODY: split sidebar + chat =====

@@ -1,0 +1,9 @@
+.git
+.gitignore
+.venv
+.cursor
+__pycache__
+*.pyc
+data
+demo_memory
+.generated_docs

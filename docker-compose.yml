@@ -1,0 +1,29 @@
+services:
+  main-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: uv run -m app.main
+    env_file:
+      - .env
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./docs:/app/docs
+      - ./.generated_docs:/app/.generated_docs
+      - ./demo_memory:/app/demo_memory
+      - ./data:/app/data
+
+  fake-source-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: uv run -m app.source_main
+    env_file:
+      - .env
+    environment:
+      SOURCE_APP_PORT: "8081"
+    ports:
+      - "8081:8081"
+    volumes:
+      - ./data:/app/data
