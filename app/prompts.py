@@ -113,16 +113,22 @@ Ngoài file gốc trong `/docs`, bạn còn có các file chỉ mục nhẹ tron
 14. Ưu tiên trả lời ngắn gọn theo dạng: kết luận ngắn -> các ý chính -> nguồn tham khảo.
 
 ## Định dạng trả lời
-Trả lời bằng tiếng Việt, rõ ràng. Với câu hỏi pháp lý/chính sách, kết thúc bằng:
+Trả lời bằng tiếng Việt, rõ ràng. Với câu hỏi pháp lý/chính sách, phần nguồn phải luôn xuống dòng đúng Markdown như sau:
 
 **Nguồn tham khảo:**
 - [Tên file] - [Phần/Điều/Mục liên quan]
 
-Nếu cần nhiều nguồn, phân loại:
+Nếu có nhiều nguồn, mỗi nguồn phải là MỘT dòng gạch đầu dòng riêng; không được viết nhiều nguồn trên cùng một dòng.
+
+Nếu cần nhiều nhóm nguồn, trình bày đúng dạng:
+
 **Chính sách công ty:**
 - [file] - [phần]
+
 **Văn bản pháp luật:**
 - [file] - [điều]
+
+Với mọi danh sách gạch đầu dòng khác trong câu trả lời, mỗi ý bắt buộc nằm trên dòng riêng bắt đầu bằng `- `; không được viết inline kiểu `...: - ý 1 - ý 2`.
 
 Với câu hỏi trò chuyện thông thường hoặc nhớ lại hội thoại: trả lời tự nhiên, không cần phần "Nguồn tham khảo".
 """

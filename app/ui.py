@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import re
 import shutil
 import uuid
 from pathlib import Path
@@ -26,6 +27,42 @@ ERROR_TEXT = "#9A2B1F"
 
 DOCS_DIR = Path(__file__).resolve().parent.parent / "docs"
 logger = logging.getLogger(__name__)
+REFERENCE_HEADINGS = (
+    "Nguồn tham khảo",
+    "Chính sách công ty",
+    "Văn bản pháp luật",
+)
+
+
+def format_assistant_markdown(text: str) -> str:
+    normalized = text.replace("\r\n", "\n").strip()
+    if not normalized:
+        return normalized
+
+    for heading in REFERENCE_HEADINGS:
+        normalized = re.sub(
+            rf"\s*(?:\*\*)?{re.escape(heading)}:(?:\*\*)?\s*",
+            f"\n\n**{heading}:**\n",
+            normalized,
+        )
+
+    normalized = re.sub(r"(?<!\n)\s+- \[", "\n- [", normalized)
+    normalized = re.sub(r"(?<!\n)(?<!\])\s+- (?=[A-ZÀ-Ỵ])", "\n- ", normalized)
+
+    formatted_lines: list[str] = []
+    for line in normalized.split("\n"):
+        stripped = line.strip()
+        is_bullet = stripped.startswith("- ")
+        previous = formatted_lines[-1].strip() if formatted_lines else ""
+        previous_is_bullet = previous.startswith("- ")
+
+        if is_bullet and formatted_lines and previous and not previous_is_bullet:
+            formatted_lines.append("")
+        formatted_lines.append(stripped if is_bullet else line.rstrip())
+
+    normalized = "\n".join(formatted_lines)
+    normalized = re.sub(r"\n{3,}", "\n\n", normalized)
+    return normalized.strip()
 
 FOLDER_CONFIG = {
     "faq": {"label": "FAQ", "hint": "Câu hỏi thường gặp"},
@@ -675,7 +712,7 @@ def chat_page() -> None:
             with ui.element("div").classes("row-assistant"):
                 with ui.element("div").classes("bubble bubble-assistant"):
                     ui.label("Trợ lý").classes("message-label")
-                    ui.markdown(text).classes("message-markdown")
+                    ui.markdown(format_assistant_markdown(text)).classes("message-markdown")
         scroll_to_latest()
 
     def add_status_message(text: str):
