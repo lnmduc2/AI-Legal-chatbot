@@ -1,5 +1,7 @@
 """Entry point for the AI Legal MVP NiceGUI application."""
 
+import logging
+
 from nicegui import background_tasks, ui
 
 import app.automation.event_ui  # noqa: F401
@@ -7,6 +9,12 @@ import app.automation.routes  # noqa: F401
 import app.ui  # noqa: F401
 from app.automation.runtime import get_automation_services
 from app.config import AI_LEGAL_MODEL, OPENAI_BASE_URL
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+)
+logger = logging.getLogger(__name__)
 
 def bootstrap_automation() -> None:
     services = get_automation_services()
@@ -17,7 +25,7 @@ def bootstrap_automation() -> None:
 
 if __name__ in {"__main__", "__mp_main__"}:
     bootstrap_automation()
-    print("AI Legal MVP starting...")
-    print(f"Model: {AI_LEGAL_MODEL}")
-    print(f"Endpoint: {OPENAI_BASE_URL}")
+    logger.info("AI Legal MVP starting...")
+    logger.info("Model: %s", AI_LEGAL_MODEL)
+    logger.info("Endpoint: %s", OPENAI_BASE_URL)
     ui.run(title="AI Legal Assistant", port=8080)

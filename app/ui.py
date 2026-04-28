@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import shutil
 import uuid
 from pathlib import Path
@@ -24,6 +25,7 @@ ERROR_BORDER = "#F3C8C1"
 ERROR_TEXT = "#9A2B1F"
 
 DOCS_DIR = Path(__file__).resolve().parent.parent / "docs"
+logger = logging.getLogger(__name__)
 
 FOLDER_CONFIG = {
     "faq": {"label": "FAQ", "hint": "Câu hỏi thường gặp"},
@@ -726,6 +728,7 @@ def chat_page() -> None:
             )
         except Exception as exc:
             thinking.delete()
+            logger.exception("Chat request failed for session %s", session_id)
             add_error_message(f"Xử lý thất bại: `{exc}`")
         finally:
             input_field.enabled = True

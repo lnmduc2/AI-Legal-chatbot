@@ -11,5 +11,5 @@ def build_llm():
         api_key=OPENAI_API_KEY,
         base_url=OPENAI_BASE_URL,
         temperature=0.3,
-        max_tokens=4096,
+        streaming=True,
     )

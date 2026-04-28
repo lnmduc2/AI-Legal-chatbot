@@ -50,3 +50,5 @@ temp_law/
 
 # Session checkpointer / demo memory (bind-mounted in Docker)
 demo_memory/
+
+.kilo
