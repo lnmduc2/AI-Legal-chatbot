@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -76,6 +77,7 @@ def event_log_page() -> None:
     services = get_automation_services()
     filter_state = {"value": "all"}
     refresh_timer: ui.timer | None = None
+    last_refresh_label: ui.label | None = None
 
     ui.add_head_html(
         f"""
@@ -543,9 +545,22 @@ def event_log_page() -> None:
                                     refresh_view()
 
                                 filter_select.on("update:model-value", on_filter_change)
-                                ui.button("Refresh", on_click=lambda: refresh_view()).props(
-                                    "outline"
-                                )
+
+                                async def refresh_now() -> None:
+                                    refresh_button.disable()
+                                    refresh_button.set_text("Refreshing...")
+                                    try:
+                                        await asyncio.to_thread(services.poller.poll_once)
+                                        refresh_view()
+                                    finally:
+                                        refresh_button.set_text("Refresh")
+                                        refresh_button.enable()
+
+                                refresh_button = ui.button(
+                                    "Refresh", on_click=refresh_now
+                                ).props("outline")
+
+                        last_refresh_label = ui.label("").classes("panel-subtitle")
 
                         with ui.row().classes("w-full gap-3 wrap"):
                             for key, label in [
@@ -596,7 +611,7 @@ def event_log_page() -> None:
                         subscriber_list = ui.column().classes("subscriber-list w-full")
 
         def refresh_view() -> None:
-            nonlocal refresh_timer
+            nonlocal refresh_timer, last_refresh_label
             if list_container.is_deleted or status_label.is_deleted:
                 if refresh_timer is not None:
                     refresh_timer.cancel()
@@ -615,6 +630,10 @@ def event_log_page() -> None:
             readiness.append("Nguồn gửi sẵn sàng" if services.config.source_ready else "Nguồn gửi chưa cấu hình")
             readiness.append(f"{len(services.subscriber_store.list_subscribers())} subscriber")
             status_label.set_text(" • ".join(readiness))
+            if last_refresh_label is not None and not last_refresh_label.is_deleted:
+                last_refresh_label.set_text(
+                    f"Cập nhật lần cuối: {_format_vietnam_time(datetime.now().astimezone().isoformat())}"
+                )
 
             if filter_state["value"] != "all":
                 events = [event for event in events if event.status == filter_state["value"]]
