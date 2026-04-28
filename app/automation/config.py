@@ -41,6 +41,7 @@ class AutomationConfig:
     data_dir: Path
     event_log_path: Path
     mail_state_path: Path
+    subscriber_path: Path
     subject_keywords: list[str]
     body_keywords: list[str]
     attachment_suffixes: list[str]
@@ -87,6 +88,7 @@ def load_automation_config() -> AutomationConfig:
         data_dir=data_dir,
         event_log_path=data_dir / "event_log.json",
         mail_state_path=data_dir / "mail_state.json",
+        subscriber_path=data_dir / "legal_team_subscribers.json",
         subject_keywords=_parse_csv(
             os.getenv(
                 "LEGAL_MAIL_SUBJECT_KEYWORDS",

@@ -2,6 +2,7 @@ from app.automation.config import AutomationConfig, MailAccount
 from app.automation.event_store import EventStore
 from app.automation.ingestor import LegalUpdateIngestor
 from app.automation.models import MailAttachment, MailMessage
+from app.automation.subscriber_store import SubscriberStore
 
 
 class FakeGmailClient:
@@ -30,10 +31,18 @@ def build_config(tmp_path) -> AutomationConfig:
         data_dir=data_dir,
         event_log_path=data_dir / "event_log.json",
         mail_state_path=data_dir / "mail_state.json",
+        subscriber_path=data_dir / "legal_team_subscribers.json",
         subject_keywords=["legal update", "privacy"],
         body_keywords=["personal data"],
         attachment_suffixes=[".md"],
         source_label="thuvienphapluat.vn",
+    )
+
+
+def build_subscriber_store(config: AutomationConfig) -> SubscriberStore:
+    return SubscriberStore(
+        config.subscriber_path,
+        initial_subscribers=config.team_recipients,
     )
 
 
@@ -66,6 +75,7 @@ def test_ingestor_writes_document_and_event(tmp_path, monkeypatch) -> None:
     ingestor = LegalUpdateIngestor(
         config=config,
         event_store=store,
+        subscriber_store=build_subscriber_store(config),
         gmail_client=fake_gmail_client,
     )
 
@@ -80,7 +90,7 @@ def test_ingestor_writes_document_and_event(tmp_path, monkeypatch) -> None:
     assert fake_gmail_client.sent_messages[0]["recipients"] == ["legal@example.com"]
 
 
-def test_ingestor_ignores_non_matching_mail(tmp_path, monkeypatch) -> None:
+def test_ingestor_skips_non_source_mail_without_event(tmp_path, monkeypatch) -> None:
     monkeypatch.setattr("app.automation.ingestor.ensure_doc_indexes", lambda: None)
     monkeypatch.setattr("app.automation.ingestor.chat_ui.trigger_sidebar_refresh", lambda: None)
 
@@ -90,6 +100,7 @@ def test_ingestor_ignores_non_matching_mail(tmp_path, monkeypatch) -> None:
     ingestor = LegalUpdateIngestor(
         config=config,
         event_store=store,
+        subscriber_store=build_subscriber_store(config),
         gmail_client=fake_gmail_client,
     )
 
@@ -97,9 +108,9 @@ def test_ingestor_ignores_non_matching_mail(tmp_path, monkeypatch) -> None:
     message.sender_email = "other@example.com"
     event = ingestor.ingest_message(message)
 
-    assert event.status == "ignored"
+    assert event is None
     assert fake_gmail_client.sent_messages == []
-    assert store.summary()["ignored"] == 1
+    assert store.summary()["total"] == 0
 
 
 def test_ingestor_accepts_keyword_from_attachment_filename(tmp_path, monkeypatch) -> None:
@@ -112,6 +123,7 @@ def test_ingestor_accepts_keyword_from_attachment_filename(tmp_path, monkeypatch
     ingestor = LegalUpdateIngestor(
         config=config,
         event_store=store,
+        subscriber_store=build_subscriber_store(config),
         gmail_client=fake_gmail_client,
     )
 
