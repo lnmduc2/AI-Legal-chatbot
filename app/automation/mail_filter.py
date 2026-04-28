@@ -1,4 +1,5 @@
 from email.utils import parseaddr
+from pathlib import Path
 
 from app.automation.models import FilterDecision, MailMessage
 
@@ -46,21 +47,25 @@ def evaluate_legal_update(
 
     normalized_subject = (message.subject or "").lower()
     normalized_body = (message.body_text or "").lower()
+    normalized_filenames = " ".join(Path(name).stem.lower() for name in valid_attachments)
     matched_keywords: list[str] = []
 
     for keyword in _normalize_keywords(subject_keywords):
         if keyword in normalized_subject:
             matched_keywords.append(keyword)
 
-    if not matched_keywords:
-        for keyword in _normalize_keywords(body_keywords):
-            if keyword in normalized_body:
-                matched_keywords.append(keyword)
+    for keyword in _normalize_keywords(body_keywords):
+        if keyword in normalized_body:
+            matched_keywords.append(keyword)
+
+    for keyword in _normalize_keywords(subject_keywords + body_keywords):
+        if keyword in normalized_filenames:
+            matched_keywords.append(keyword)
 
     if not matched_keywords:
         return FilterDecision(
             accepted=False,
-            reason="Email did not match any configured subject/body legal-update keywords.",
+            reason="Email did not match any configured subject/body/filename legal-update keywords.",
             attachment_names=valid_attachments,
         )
 

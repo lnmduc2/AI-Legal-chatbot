@@ -58,6 +58,7 @@ def build_message() -> MailMessage:
 
 def test_ingestor_writes_document_and_event(tmp_path, monkeypatch) -> None:
     monkeypatch.setattr("app.automation.ingestor.ensure_doc_indexes", lambda: None)
+    monkeypatch.setattr("app.automation.ingestor.chat_ui.trigger_sidebar_refresh", lambda: None)
 
     config = build_config(tmp_path)
     fake_gmail_client = FakeGmailClient()
@@ -81,6 +82,7 @@ def test_ingestor_writes_document_and_event(tmp_path, monkeypatch) -> None:
 
 def test_ingestor_ignores_non_matching_mail(tmp_path, monkeypatch) -> None:
     monkeypatch.setattr("app.automation.ingestor.ensure_doc_indexes", lambda: None)
+    monkeypatch.setattr("app.automation.ingestor.chat_ui.trigger_sidebar_refresh", lambda: None)
 
     config = build_config(tmp_path)
     fake_gmail_client = FakeGmailClient()
@@ -98,3 +100,27 @@ def test_ingestor_ignores_non_matching_mail(tmp_path, monkeypatch) -> None:
     assert event.status == "ignored"
     assert fake_gmail_client.sent_messages == []
     assert store.summary()["ignored"] == 1
+
+
+def test_ingestor_accepts_keyword_from_attachment_filename(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr("app.automation.ingestor.ensure_doc_indexes", lambda: None)
+    monkeypatch.setattr("app.automation.ingestor.chat_ui.trigger_sidebar_refresh", lambda: None)
+
+    config = build_config(tmp_path)
+    fake_gmail_client = FakeGmailClient()
+    store = EventStore(config.event_log_path)
+    ingestor = LegalUpdateIngestor(
+        config=config,
+        event_store=store,
+        gmail_client=fake_gmail_client,
+    )
+
+    message = build_message()
+    message.subject = "Legal update - test"
+    message.body_text = "No configured keyword here."
+    message.attachments[0].filename = "privacy-law.md"
+    event = ingestor.ingest_message(message)
+
+    assert event.status == "processed"
+    assert event.action == "created"
+    assert fake_gmail_client.sent_messages[0]["recipients"] == ["legal@example.com"]

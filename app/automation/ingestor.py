@@ -1,6 +1,8 @@
 from pathlib import Path
 from uuid import uuid4
 
+from app import ui as chat_ui
+
 from app.automation.config import AutomationConfig
 from app.automation.event_store import EventStore
 from app.automation.gmail_client import GmailClient
@@ -84,6 +86,7 @@ class LegalUpdateIngestor:
             text = attachment.payload.decode("utf-8")
             target_path.write_text(text, encoding="utf-8")
             ensure_doc_indexes()
+            chat_ui.trigger_sidebar_refresh()
 
             notification_status = self._notify_legal_team(message, attachment, action)
             event = LegalDocumentEvent(
